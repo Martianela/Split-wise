@@ -1,14 +1,22 @@
-const { Groups, User, Expanse } = require('../Models/relationships');
+const { where, or, Op } = require('sequelize');
+const sequelize = require('../connection');
+const {
+  Groups,
+  User,
+  Expanse,
+  Transaction,
+} = require('../Models/relationships');
 const { expanseValidationSchema } = require('../utils/expanse.util');
 
 const createExpanse = async (req, res) => {
   const user_id = req.user_id;
+  const transaction = await sequelize.transaction();
   try {
     const { error, value } = expanseValidationSchema.validate(req.body, {
       abortEarly: false,
     });
     if (error) {
-      throw new Error(`${error.details.map((x) => x.message).join(', ')}`);
+      throw new Error(`${error.details.map((x) => x.message).join(',')}`);
     }
     const { title, desc, g_id, amount } = value;
     const group = await Groups.findByPk(Number(g_id));
@@ -40,14 +48,20 @@ const createExpanse = async (req, res) => {
             attributes: ['title'],
           },
         ],
+        transaction,
       }
     );
+
+    transaction.commit();
     return res.status(200).json({
       success: true,
       message: 'expanse is added successfully',
       data: exp,
     });
   } catch (error) {
+    await transaction.rollback();
+    console.log(error.message);
+
     res.status(500).json({ success: false, error: error.message });
   }
 };
@@ -68,7 +82,7 @@ const updateExpanse = async (req, res) => {
         {
           model: Groups,
           as: 'group',
-          where: { g_id },
+          where: { g_id: g_id },
           include: {
             model: User,
             as: 'members',
@@ -157,4 +171,77 @@ const deleteExpanse = async (req, res) => {
     });
   }
 };
-module.exports = { createExpanse, updateExpanse, deleteExpanse };
+const getUserExpanse = async (req, res) => {
+  const user_id = req.user_id;
+  try {
+    const userExpense = await Expanse.findAll({
+      include: [
+        {
+          model: User,
+          as: 'particepents',
+          where: { id: user_id },
+          attributes: [],
+        },
+        {
+          model: Groups,
+          as: 'group',
+          attributes: ['g_id', 'title'],
+        },
+        {
+          model: Transaction,
+          as: 'expenseTransactions',
+          attributes: ['transactionId', 'amount', 'status'],
+          include: [
+            {
+              model: User,
+              as: 'payer',
+              attributes: ['username'],
+            },
+            {
+              model: User,
+              as: 'receiver',
+              attributes: ['username'],
+            },
+          ],
+          required: false,
+          where: {
+            [Op.and]: [
+              {
+                [Op.or]: [
+                  {
+                    payerId: user_id,
+                  },
+                  {
+                    receiverId: user_id,
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+      order: [['createdAt', 'DESC']],
+      attributes: {
+        exclude: ['createdAt', 'g_id'],
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Expense Retrieved successfully',
+      data: userExpense,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'something went wrong',
+      error: error.message,
+    });
+  }
+};
+module.exports = {
+  createExpanse,
+  updateExpanse,
+  deleteExpanse,
+  getUserExpanse,
+};

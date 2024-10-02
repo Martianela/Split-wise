@@ -1,6 +1,6 @@
 const { Op } = require('sequelize');
 const { genrateToken } = require('../middlewere/userValidation');
-const { User, Groups } = require('../Models/relationships');
+const { User, Groups, Transaction } = require('../Models/relationships');
 const { hashPassword, verifyPassword } = require('../utils/password.utils');
 const { getUser, userValidationSchema } = require('../utils/user.utils');
 
@@ -16,7 +16,7 @@ const createUser = async (req, res) => {
     }
     const { username, email, password, bio } = value;
     if (username && email && password) {
-      const user = User.findOne({
+      const user = await User.findOne({
         where: {
           [Op.or]: {
             username: username,
@@ -24,6 +24,8 @@ const createUser = async (req, res) => {
           },
         },
       });
+      console.log(user);
+
       if (user)
         return res.status(401).json({
           success: false,
@@ -52,12 +54,26 @@ const createUser = async (req, res) => {
     });
   }
 };
+
 const getAllUsers = async (req, res) => {
+  const user_id = req.user_id;
   try {
-    const Users = await User.findAll();
-    res.send(Users);
+    const UsersList = await User.findAll({
+      attributes: ['id', 'username'],
+    });
+    const filteredUsers = UsersList.filter((user) => user.id !== user_id);
+
+    return res.status(200).json({
+      success: true,
+      message: 'User list retrieved successfully',
+      data: filteredUsers,
+    });
   } catch (error) {
-    console.log(error);
+    return res.status(500).json({
+      success: false,
+      message: 'something went wrong',
+      error: error.message,
+    });
   }
 };
 
@@ -86,16 +102,21 @@ const login = async (req, res) => {
         return res.json({
           success: true,
           message: 'user loggged in successfully',
+          data: payload,
           token: token,
         });
       } else {
-        return res.status(404).send('invalid username or password');
+        return res
+          .status(401)
+          .json({ success: false, message: 'invalid username or password' });
       }
     } else {
-      return res.status(401).send('username or password required');
+      return res
+        .status(401)
+        .json({ success: false, message: 'invalid username or password' });
     }
   } catch (error) {
-    return res.status(404).json({
+    return res.status(500).json({
       success: false,
       message: 'something went wront',
       error: error.message,
@@ -155,7 +176,7 @@ const getUserGroups = async (req, res) => {
       include: {
         model: Groups,
         as: 'groups',
-        attributes: ['g_id', 'title', 'desc'],
+        attributes: ['g_id', 'title', 'desc', 'createdAt'],
         through: { attributes: [] },
       },
     });
@@ -165,7 +186,7 @@ const getUserGroups = async (req, res) => {
       data: user.groups,
     });
   } catch (error) {
-    return res.status(404).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, error: error.message });
   }
 };
 
@@ -186,6 +207,45 @@ const leveGroup = async (req, res) => {
     return res.status(404).json({ error: error.message });
   }
 };
+const getUserTransctions = async (req, res) => {
+  const user_id = req.user_id;
+  try {
+    const userTnx = await Transaction.findAll({
+      where: {
+        [Op.or]: [
+          {
+            payerId: user_id,
+          },
+          {
+            receiverId: user_id,
+          },
+        ],
+      },
+      include: [
+        {
+          model: User,
+          as: 'payer',
+          attributes: ['username'],
+        },
+        {
+          model: User,
+          as: 'receiver',
+          attributes: ['username'],
+        },
+      ],
+    });
+    return res.status(200).json({
+      success: true,
+      message: 'transaction successfully',
+      data: userTnx,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
 module.exports = {
   createUser,
   getAllUsers,
@@ -194,4 +254,5 @@ module.exports = {
   deleteUser,
   getUserGroups,
   leveGroup,
+  getUserTransctions,
 };

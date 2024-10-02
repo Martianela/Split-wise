@@ -1,8 +1,7 @@
 const Expanse = require('./expanse.model');
 const Groups = require('./group.model');
+const Transaction = require('./transaction.model');
 const User = require('./User.model');
-const UserGlobalBalance = require('./UserGlobalBalance.model');
-const UserGroupBalance = require('./UserGroupBalance.model');
 
 Groups.belongsToMany(User, {
   through: 'GruopMembers',
@@ -20,22 +19,30 @@ User.belongsToMany(Groups, {
 Groups.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
 User.hasMany(Groups, { foreignKey: 'createdBy' });
 
-Groups.belongsToMany(User, {
-  through: UserGroupBalance,
-  as: 'userBalance',
-  foreignKey: 'g_id',
+Transaction.belongsTo(User, { foreignKey: 'payerId', as: 'payer' });
+Transaction.belongsTo(User, {
+  foreignKey: 'receiverId',
+  as: 'receiver',
+});
+Transaction.belongsTo(Groups, { foreignKey: 'groupId', as: 'group' });
+Transaction.belongsTo(Expanse, {
+  foreignKey: 'expenseId',
+  as: 'expense',
 });
 
-User.belongsToMany(Groups, {
-  through: UserGroupBalance,
-  as: 'groupBalances',
-  foreignKey: 'user_id',
+Expanse.hasMany(Transaction, {
+  foreignKey: 'expenseId',
+  as: 'expenseTransactions',
+});
+Expanse.belongsToMany(User, {
+  through: 'ExpanseParticipents',
+  as: 'particepents',
+  foreignKey: 'expanseId',
 });
 
 module.exports = {
   User,
   Groups,
   Expanse,
-  UserGlobalBalance,
-  UserGroupBalance,
+  Transaction,
 };

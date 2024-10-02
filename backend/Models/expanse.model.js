@@ -1,7 +1,11 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../connection');
-const Groups = require('./group.model');
 const User = require('./User.model');
+const Groups = require('./group.model');
+const {
+  updateExpanseTransactions,
+  createExpanseTransaction,
+} = require('../utils/transaction.util');
 
 const Expanse = sequelize.define('Expanse', {
   expanse_id: {
@@ -49,5 +53,8 @@ Expanse.belongsTo(Groups, {
   as: 'group',
   onDelete: 'CASCADE',
 });
+
+Expanse.afterUpdate(updateExpanseTransactions);
+Expanse.afterCreate(createExpanseTransaction);
 
 module.exports = Expanse;

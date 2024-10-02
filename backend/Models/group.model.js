@@ -26,4 +26,18 @@ const Groups = sequelize.define('Groups', {
   },
 });
 
+Groups.afterCreate(async (group, options) => {
+  const { user_id, transaction } = options;
+  try {
+    if (!user_id)
+      throw new Error(
+        'User id not defined. occured while executing afterCreate hook'
+      );
+    await group.addMember(user_id, { transaction });
+  } catch (error) {
+    console.log(error.message);
+    throw error;
+  }
+});
+
 module.exports = Groups;

@@ -6,6 +6,7 @@ const {
   deleteUser,
   getUserGroups,
   leveGroup,
+  getUserTransctions,
 } = require('../controllers/userController');
 const userRoute = express.Router();
 
@@ -14,5 +15,6 @@ userRoute.put('/update/:id', updateUser);
 userRoute.delete('/delete/:id', deleteUser);
 userRoute.get('/groups', getUserGroups);
 userRoute.delete('/groups/:id', leveGroup);
+userRoute.get('/transaction', getUserTransctions);
 
 module.exports = userRoute;

@@ -15,18 +15,6 @@ const findGroupByID = async (g_id) => {
   return group;
 };
 
-const addUserBalanceToGroup = async (user, group, t) => {
-  try {
-    await group.addUserBalance(user, {
-      through: { balance: 0 },
-      transaction: t,
-    });
-  } catch (error) {
-    throw error;
-  }
-};
-
 module.exports = {
   findGroupByID,
-  addUserBalanceToGroup,
 };
